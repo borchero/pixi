@@ -81,19 +81,39 @@ impl<'p> OutdatedEnvironments<'p> {
         // Mark the rest of the environments out of date for all solve groups
         for (solve_group, platforms) in conda_solve_groups_out_of_date {
             for env in solve_group.environments() {
-                outdated_conda
-                    .entry(env.clone())
-                    .or_default()
-                    .extend(platforms.iter().copied());
+                // Only mark platforms that this environment actually supports
+                let env_platforms = env.platforms();
+                let platforms_to_mark: Vec<_> = platforms
+                    .iter()
+                    .filter(|p| env_platforms.contains(p))
+                    .copied()
+                    .collect();
+
+                if !platforms_to_mark.is_empty() {
+                    outdated_conda
+                        .entry(env.clone())
+                        .or_default()
+                        .extend(platforms_to_mark);
+                }
             }
         }
 
         for (solve_group, platforms) in pypi_solve_groups_out_of_date {
             for env in solve_group.environments() {
-                outdated_pypi
-                    .entry(env.clone())
-                    .or_default()
-                    .extend(platforms.iter().copied());
+                // Only mark platforms that this environment actually supports
+                let env_platforms = env.platforms();
+                let platforms_to_mark: Vec<_> = platforms
+                    .iter()
+                    .filter(|p| env_platforms.contains(p))
+                    .copied()
+                    .collect();
+
+                if !platforms_to_mark.is_empty() {
+                    outdated_pypi
+                        .entry(env.clone())
+                        .or_default()
+                        .extend(platforms_to_mark);
+                }
             }
         }
 
@@ -285,6 +305,11 @@ fn find_inconsistent_solve_groups<'p>(
 
         // Iterate over all environments to compare the packages.
         for env in solve_group.environments() {
+            // Skip environments that don't support this platform
+            if !env.platforms().contains(&platform) {
+                continue;
+            }
+
             if outdated_conda
                 .get(&env)
                 .and_then(|p| p.get(&platform))

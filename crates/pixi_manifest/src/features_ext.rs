@@ -120,8 +120,19 @@ pub trait FeaturesExt<'source>: HasManifestRef<'source> + HasFeaturesIter<'sourc
     /// The dependencies of all features are combined. This means that if two features define a
     /// requirement for the same package that both requirements are returned. The different
     /// requirements per package are sorted in the same order as the features they came from.
+    ///
+    /// If a platform is specified, features that don't support that platform are excluded.
     fn pypi_dependencies(&self, platform: Option<Platform>) -> PyPiDependencies {
         self.features()
+            .filter(|f| {
+                // If a platform is requested and the feature has platform restrictions,
+                // only include the feature if it supports the requested platform
+                if let (Some(platform), Some(feature_platforms)) = (platform, &f.platforms) {
+                    feature_platforms.value.contains(&platform)
+                } else {
+                    true
+                }
+            })
             .filter_map(|f| f.pypi_dependencies(platform))
             .into()
     }
@@ -131,12 +142,23 @@ pub trait FeaturesExt<'source>: HasManifestRef<'source> + HasFeaturesIter<'sourc
     /// The dependencies of all features are combined. This means that if two features define a
     /// requirement for the same package that both requirements are returned. The different
     /// requirements per package are sorted in the same order as the features they came from.
+    ///
+    /// If a platform is specified, features that don't support that platform are excluded.
     fn dependencies(
         &self,
         kind: Option<SpecType>,
         platform: Option<Platform>,
     ) -> CondaDependencies {
         self.features()
+            .filter(|f| {
+                // If a platform is requested and the feature has platform restrictions,
+                // only include the feature if it supports the requested platform
+                if let (Some(platform), Some(feature_platforms)) = (platform, &f.platforms) {
+                    feature_platforms.value.contains(&platform)
+                } else {
+                    true
+                }
+            })
             .filter_map(|f| f.dependencies(kind, platform))
             .into()
     }
